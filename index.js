@@ -16,27 +16,25 @@ const TICKERS = ["BTC","ETH","SOL","BNB","XRP","DOGE","SHIB","PEPE","ADA","AVAX"
 app.get("/", async (req, res) => {
   const token = process.env.TWITTER_BEARER;
 
+  if (!token) {
+    return res.status(403).json({ error: "Twitter token missing. Cannot fetch real data." });
+  }
+
   // Return cached data if fresh
   try {
     if (fs.existsSync(CACHE_FILE)) {
       const cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
       if (Date.now() - cache.timestamp < CACHE_TTL) {
-        return res.json({ cached: true, results: cache.results });
+        return res.json({ cached: true, results: cache.results.slice(0, 5) });
       }
     }
   } catch (err) {
     console.error("Cache read error:", err.message);
   }
 
-  // If no token, return mock data
-  if (!token) {
-    const mockData = TICKERS.map(t => ({ ticker: t, tweets: Math.floor(Math.random() * 5000) + 100 }));
-    return res.json({ mock: true, results: mockData });
-  }
-
   const results = [];
 
-  // Loop through tickers, fetch 100 most recent tweets per ticker
+  // Fetch up to 100 recent tweets per ticker
   for (let ticker of TICKERS) {
     const query = encodeURIComponent(`$${ticker} -is:retweet`);
     const url = `https://api.twitter.com/2/tweets/search/recent?query=${query}&max_results=100`;
@@ -47,9 +45,8 @@ app.get("/", async (req, res) => {
       });
 
       if (response.status === 429) {
-        console.warn("Rate limit reached, returning mock data");
-        const mockData = TICKERS.map(t => ({ ticker: t, tweets: Math.floor(Math.random() * 5000) + 100 }));
-        return res.json({ error: "Too many requests", mock: true, results: mockData });
+        console.warn("Rate limit reached. Returning partial results.");
+        break; // stop fetching more tickers
       }
 
       const data = await response.json();
@@ -62,17 +59,17 @@ app.get("/", async (req, res) => {
     }
   }
 
-  // Save to cache
+  // Sort descending by tweet count and pick top 5
+  const topResults = results.sort((a,b) => b.tweets - a.tweets).slice(0, 5);
+
+  // Save cache
   try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify({ timestamp: Date.now(), results }));
+    fs.writeFileSync(CACHE_FILE, JSON.stringify({ timestamp: Date.now(), results: topResults }));
   } catch (err) {
     console.error("Cache write error:", err.message);
   }
 
-  // Sort descending
-  results.sort((a,b) => b.tweets - a.tweets);
-
-  res.json({ cached: false, results });
+  res.json({ cached: false, results: topResults });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
