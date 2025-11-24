@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trending Crypto Tickers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 20px;
+      color: #333;
+    }
+    .container {
+      background: #fff;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #1a202c;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px 15px;
+      text-align: center;
+    }
+    th {
+      background: #1e40af;
+      color: white;
+      font-weight: 600;
+      border-radius: 4px;
+    }
+    tr:nth-child(even) {
+      background: #f2f4f7;
+    }
+    tr:hover {
+      background: #e0e7ff;
+    }
+    .loading {
+      text-align: center;
+      font-style: italic;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Top 5 Trending Crypto Tickers</h1>
+    <table id="ticker-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Ticker</th>
+          <th>Tweets</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="3" class="loading">Loading data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    async function loadData() {
+      try {
+        const res = await fetch("index"); // or "https://your-render-url/"
+        const data = await res.json();
+
+        const tbody = document.querySelector("#ticker-table tbody");
+        tbody.innerHTML = "";
+
+        if (!data.results || data.results.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3">No data available</td></tr>';
+          return;
+        }
+
+        data.results.forEach((item, index) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${item.ticker}</td>
+            <td>${item.tweets}</td>
+          `;
+          tbody.appendChild(row);
+        });
+
+      } catch (err) {
+        const tbody = document.querySelector("#ticker-table tbody");
+        tbody.innerHTML = `<tr><td colspan="3">Error loading data: ${err.message}</td></tr>`;
+      }
+    }
+
+    loadData();
+    // Refresh every 2 minutes to match server cache
+    setInterval(loadData, 2 * 60 * 1000);
+  </script>
+</body>
+</html>
